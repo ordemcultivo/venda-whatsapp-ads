@@ -1,0 +1,121 @@
+{
+  "name": "Evolution → Meta CAPI (#venda)",
+  "nodes": [
+    {
+      "parameters": {
+        "httpMethod": "POST",
+        "path": "evolution-venda",
+        "responseMode": "onReceived",
+        "options": {}
+      },
+      "id": "node-webhook-001",
+      "name": "Webhook Evolution",
+      "type": "n8n-nodes-base.webhook",
+      "typeVersion": 2,
+      "position": [240, 300],
+      "webhookId": "evolution-venda-001"
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "options": {
+            "caseSensitive": false,
+            "typeValidation": "loose"
+          },
+          "conditions": [
+            {
+              "id": "cond-fromme",
+              "leftValue": "={{ $json.data?.key?.fromMe }}",
+              "rightValue": true,
+              "operator": {
+                "type": "boolean",
+                "operation": "true"
+              }
+            },
+            {
+              "id": "cond-keyword",
+              "leftValue": "={{ ($json.data?.message?.conversation ?? $json.data?.message?.extendedTextMessage?.text ?? '').toLowerCase() }}",
+              "rightValue": "#venda",
+              "operator": {
+                "type": "string",
+                "operation": "contains"
+              }
+            }
+          ],
+          "combinator": "and"
+        }
+      },
+      "id": "node-if-002",
+      "name": "É #venda do atendente?",
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2,
+      "position": [460, 300]
+    },
+    {
+      "parameters": {
+        "jsCode": "const crypto = require('crypto');\n\n// Extrai o número do remoteJid (ex: 5511999999999@s.whatsapp.net)\nconst remoteJid = $json.data.key.remoteJid;\nconst phone = remoteJid.replace('@s.whatsapp.net', '').replace(/\\D/g, '');\n\n// Garante código do Brasil (+55)\nconst phoneFormatted = phone.startsWith('55') ? phone : '55' + phone;\n\n// Hash SHA256 obrigatório pelo Meta\nconst hashedPhone = crypto.createHash('sha256').update(phoneFormatted).digest('hex');\n\nconst timestamp = Math.floor(Date.now() / 1000);\n\n// Monta o payload completo da CAPI\nconst capiPayload = {\n  data: [{\n    event_name: 'Lead',\n    event_time: timestamp,\n    action_source: 'other',\n    user_data: {\n      ph: [hashedPhone]\n    }\n  }],\n  access_token: 'SEU_TOKEN_AQUI'\n};\n\nreturn [{ json: { capiPayload, phone: phoneFormatted, timestamp } }];"
+      },
+      "id": "node-code-003",
+      "name": "Prepara dados CAPI",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [680, 220]
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "https://graph.facebook.com/v19.0/SEU_PIXEL_ID/events",
+        "sendBody": true,
+        "contentType": "json",
+        "specifyBody": "json",
+        "jsonBody": "={{ JSON.stringify($json.capiPayload) }}",
+        "options": {}
+      },
+      "id": "node-http-004",
+      "name": "Meta CAPI",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4,
+      "position": [900, 220]
+    }
+  ],
+  "connections": {
+    "Webhook Evolution": {
+      "main": [
+        [
+          {
+            "node": "É #venda do atendente?",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "É #venda do atendente?": {
+      "main": [
+        [
+          {
+            "node": "Prepara dados CAPI",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        []
+      ]
+    },
+    "Prepara dados CAPI": {
+      "main": [
+        [
+          {
+            "node": "Meta CAPI",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "active": false,
+  "settings": {
+    "executionOrder": "v1"
+  }
+}

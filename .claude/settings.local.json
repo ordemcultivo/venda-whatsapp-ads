@@ -1,0 +1,10 @@
+{
+  "permissions": {
+    "allow": [
+      "WebFetch(domain:tintim.app)",
+      "mcp__187fcae1-7bc3-430a-8387-be17f76fb221__list_tables",
+      "mcp__187fcae1-7bc3-430a-8387-be17f76fb221__apply_migration",
+      "Bash(npx create-next-app@latest . --typescript --tailwind --app --no-src-dir --import-alias \"@/*\" --no-git --yes)"
+    ]
+  }
+}
