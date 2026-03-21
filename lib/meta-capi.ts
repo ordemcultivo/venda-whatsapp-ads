@@ -19,13 +19,13 @@ interface CapiEventData {
   email?: string
   firstName?: string
   lastName?: string
-  clickId?: string          // fbc (fbclid)
+  clickId?: string          // ctwa_clid (Click-to-WhatsApp) ou fbclid
   value?: number
   currency?: string
   campaignId?: string
   adsetId?: string
   adId?: string
-  eventSourceUrl?: string
+  whatsappBusinessAccountId?: string
 }
 
 interface CapiResponse {
@@ -39,16 +39,19 @@ export async function sendCapiEvent(data: CapiEventData): Promise<CapiResponse> 
   const {
     pixelId, accessToken, eventName, phone, email,
     firstName, lastName, clickId, value, currency = 'BRL',
+    whatsappBusinessAccountId,
     eventTime = Math.floor(Date.now() / 1000),
   } = data
 
   // Dados do usuário hasheados (obrigatório pela Meta)
-  const userData: Record<string, string> = {}
+  const userData: Record<string, any> = {}
   if (phone)     userData.ph = hash(phone.replace(/\D/g, ''))
   if (email)     userData.em = hash(email)
   if (firstName) userData.fn = hash(firstName)
   if (lastName)  userData.ln = hash(lastName)
-  if (clickId)   userData.fbc = clickId
+  // ctwa_clid: não é hasheado, enviado direto (campo separado do fbc)
+  if (clickId)   userData.ctwa_clid = clickId
+  if (whatsappBusinessAccountId) userData.whatsapp_business_account_id = whatsappBusinessAccountId
 
   // Dados customizados do evento
   const customData: Record<string, any> = {}
@@ -62,8 +65,8 @@ export async function sendCapiEvent(data: CapiEventData): Promise<CapiResponse> 
       {
         event_name:        eventName,
         event_time:        eventTime,
-        action_source:     'other',       // WhatsApp = "other"
-        event_source_url:  data.eventSourceUrl ?? undefined,
+        action_source:     'business_messaging',  // correto para WhatsApp
+        messaging_channel: 'whatsapp',
         user_data:         userData,
         custom_data:       Object.keys(customData).length > 0 ? customData : undefined,
       },
