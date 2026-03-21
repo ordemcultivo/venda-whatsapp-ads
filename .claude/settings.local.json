@@ -4,7 +4,16 @@
       "WebFetch(domain:tintim.app)",
       "mcp__187fcae1-7bc3-430a-8387-be17f76fb221__list_tables",
       "mcp__187fcae1-7bc3-430a-8387-be17f76fb221__apply_migration",
-      "Bash(npx create-next-app@latest . --typescript --tailwind --app --no-src-dir --import-alias \"@/*\" --no-git --yes)"
+      "Bash(npx create-next-app@latest . --typescript --tailwind --app --no-src-dir --import-alias \"@/*\" --no-git --yes)",
+      "Bash(npm install:*)",
+      "Bash(npx shadcn@latest init -d)",
+      "Bash(npx shadcn@latest add button card input label badge table tabs select dropdown-menu dialog avatar separator tooltip sheet sidebar --yes)",
+      "Bash(npx tsc:*)",
+      "Bash(node -e \"console.log\\(require\\(''crypto''\\).randomBytes\\(32\\).toString\\(''base64''\\)\\)\")",
+      "mcp__187fcae1-7bc3-430a-8387-be17f76fb221__execute_sql",
+      "Bash(curl -s http://localhost:3000/login)",
+      "Bash(curl -s -X POST http://localhost:3000/api/webhooks/whatsapp -H \"Content-Type: application/json\" -d \"{\"\"event\"\":\"\"test\"\"}\")",
+      "Bash(node -e \":*)"
     ]
   }
 }
