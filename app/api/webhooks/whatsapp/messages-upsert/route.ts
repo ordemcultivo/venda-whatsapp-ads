@@ -1,5 +1,6 @@
-// Evolution API v2 adiciona o nome do evento ao final da URL
-// Ex: /api/webhooks/whatsapp/messages-upsert
-// Este arquivo redireciona para o handler principal
+import { NextRequest } from 'next/server'
+import { processWhatsappWebhook } from '@/lib/webhooks/process-whatsapp'
 
-export { POST } from '../route'
+export async function POST(req: NextRequest) {
+  return processWhatsappWebhook(req)
+}
