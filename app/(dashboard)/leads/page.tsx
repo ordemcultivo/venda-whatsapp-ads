@@ -24,9 +24,9 @@ export default async function LeadsPage({ searchParams }: PageProps) {
     isAdmin ? getClients() : Promise.resolve([]),
   ])
 
-  async function handleStatusChange(leadId: string, status: LeadStatus) {
+  async function handleStatusChange(leadId: string, status: LeadStatus, value?: number) {
     'use server'
-    await updateLeadStatus(leadId, status)
+    await updateLeadStatus(leadId, status, value)
   }
 
   return (

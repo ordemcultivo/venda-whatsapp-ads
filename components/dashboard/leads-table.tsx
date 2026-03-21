@@ -67,7 +67,7 @@ export function LeadsTable({ leads, onStatusChange }: LeadsTableProps) {
         <div className="space-y-4 pt-2">
           <p className="text-sm text-muted-foreground">Lead: <span className="text-foreground font-medium">{saleDialog?.name}</span></p>
           <div className="space-y-1.5">
-            <Label htmlFor="sale-value">Valor da venda (opcional)</Label>
+            <Label htmlFor="sale-value">Valor da venda <span className="text-red-400">*</span></Label>
             <div className="relative">
               <span className="absolute left-3 top-1/2 -translate-y-1/2 text-sm text-muted-foreground">R$</span>
               <Input
@@ -83,7 +83,7 @@ export function LeadsTable({ leads, onStatusChange }: LeadsTableProps) {
           </div>
           <div className="flex gap-2 justify-end">
             <Button variant="ghost" size="sm" onClick={() => { setSaleDialog(null); setSaleValue('') }}>Cancelar</Button>
-            <Button size="sm" onClick={confirmSale} className="bg-violet-600 hover:bg-violet-700">Confirmar Venda</Button>
+            <Button size="sm" onClick={confirmSale} disabled={!saleValue} className="bg-violet-600 hover:bg-violet-700">Confirmar Venda</Button>
           </div>
         </div>
       </DialogContent>
