@@ -1,6 +1,6 @@
 'use client'
 
-import { useRouter, useSearchParams } from 'next/navigation'
+import { useRouter, useSearchParams, usePathname } from 'next/navigation'
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select'
 
 interface Client { id: string; name: string; slug: string }
@@ -13,20 +13,23 @@ interface Props {
 }
 
 const periods = [
-  { value: '7d',  label: 'Últimos 7 dias' },
-  { value: '30d', label: 'Últimos 30 dias' },
-  { value: '90d', label: 'Últimos 90 dias' },
+  { value: '7d',   label: 'Últimos 7 dias' },
+  { value: '30d',  label: 'Últimos 30 dias' },
+  { value: '90d',  label: 'Últimos 90 dias' },
+  { value: '365d', label: 'Últimos 12 meses' },
+  { value: 'all',  label: 'Tudo' },
 ]
 
 export function DashboardFilters({ clients, selectedClient, selectedPeriod, isAdmin }: Props) {
   const router = useRouter()
   const searchParams = useSearchParams()
+  const pathname = usePathname()
 
   function update(key: string, value: string | null) {
     const params = new URLSearchParams(searchParams.toString())
     if (value) params.set(key, value)
     else params.delete(key)
-    router.push(`/dashboard?${params.toString()}`)
+    router.push(`${pathname}?${params.toString()}`)
   }
 
   return (

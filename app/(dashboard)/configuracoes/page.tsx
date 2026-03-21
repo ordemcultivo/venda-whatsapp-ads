@@ -1,10 +1,18 @@
 import { auth } from '@/lib/auth'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import { Settings } from 'lucide-react'
+import { getClientConfig } from '@/lib/actions/configuracoes'
+import { ConfiguracoesIntegracoes } from '@/components/dashboard/configuracoes-integracoes'
 
 export default async function ConfiguracoesPage() {
   const session = await auth()
   const user = session?.user as any
+  const isAdmin = user?.role === 'ADMIN'
+
+  const config = !isAdmin ? await getClientConfig() : null
+
+  const webhookUrl = `${process.env.NEXTAUTH_URL ?? 'https://seudominio.com'}/api/webhooks/whatsapp`
+  const webhookSecret = process.env.WEBHOOK_SECRET ?? 'roberto_venda_secret_2026'
 
   return (
     <div className="p-6 space-y-6 max-w-[800px]">
@@ -17,6 +25,7 @@ export default async function ConfiguracoesPage() {
         </p>
       </div>
 
+      {/* Informações da conta */}
       <Card className="bg-card border-border/50">
         <CardHeader>
           <CardTitle className="text-sm">Informações da Conta</CardTitle>
@@ -33,33 +42,44 @@ export default async function ConfiguracoesPage() {
           <div className="flex items-center justify-between py-2">
             <span className="text-sm text-muted-foreground">Perfil</span>
             <span className={`text-xs font-semibold px-2 py-0.5 rounded-full ${
-              user?.role === 'ADMIN'
-                ? 'bg-amber-500/15 text-amber-400'
-                : 'bg-primary/15 text-primary'
+              isAdmin ? 'bg-amber-500/15 text-amber-400' : 'bg-primary/15 text-primary'
             }`}>
-              {user?.role}
+              {isAdmin ? 'Administrador' : 'Cliente'}
             </span>
           </div>
         </CardContent>
       </Card>
 
-      <Card className="bg-card border-border/50">
-        <CardHeader>
-          <CardTitle className="text-sm">Webhook Evolution API</CardTitle>
-        </CardHeader>
-        <CardContent className="space-y-3">
-          <p className="text-xs text-muted-foreground">
-            Configure este URL no painel da Evolution API para capturar mensagens:
-          </p>
-          <div className="bg-secondary/50 rounded-lg p-3 font-mono text-xs break-all">
-            {`${process.env.NEXTAUTH_URL ?? 'https://seudominio.com'}/api/webhooks/whatsapp`}
-          </div>
-          <div className="flex items-center justify-between text-xs">
-            <span className="text-muted-foreground">Header obrigatório:</span>
-            <code className="bg-secondary/50 px-2 py-0.5 rounded">x-webhook-secret: roberto_venda_secret_2026</code>
-          </div>
-        </CardContent>
-      </Card>
+      {/* Integrações — só para clientes */}
+      {!isAdmin && (
+        <ConfiguracoesIntegracoes
+          client={config?.client ?? null}
+          meta={config?.meta ?? null}
+          webhookUrl={webhookUrl}
+          webhookSecret={webhookSecret}
+        />
+      )}
+
+      {/* Admin vê só o webhook geral */}
+      {isAdmin && (
+        <Card className="bg-card border-border/50">
+          <CardHeader>
+            <CardTitle className="text-sm">URL do Webhook</CardTitle>
+          </CardHeader>
+          <CardContent className="space-y-3">
+            <p className="text-xs text-muted-foreground">
+              Configure este URL no painel de cada instância do WhatsApp:
+            </p>
+            <div className="bg-secondary/50 rounded-lg p-3 font-mono text-xs break-all">
+              {webhookUrl}
+            </div>
+            <div className="flex items-center justify-between text-xs">
+              <span className="text-muted-foreground">Header:</span>
+              <code className="bg-secondary/50 px-2 py-0.5 rounded">x-webhook-secret: {webhookSecret}</code>
+            </div>
+          </CardContent>
+        </Card>
+      )}
     </div>
   )
 }

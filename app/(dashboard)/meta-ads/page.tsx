@@ -1,45 +1,101 @@
-import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import { Megaphone } from 'lucide-react'
+import { auth } from '@/lib/auth'
+import { getMetaCampaigns } from '@/lib/actions/meta-ads'
+import { MetaAdsDashboard } from '@/components/dashboard/meta-ads-dashboard'
+import { Card, CardContent } from '@/components/ui/card'
+import { createAdminSupabase } from '@/lib/supabase/admin'
+import { MetaAdsClientSelect } from '@/components/dashboard/meta-ads-client-select'
 
-export default function MetaAdsPage() {
+interface Props {
+  searchParams: Promise<{ period?: string; client?: string }>
+}
+
+export default async function MetaAdsPage({ searchParams }: Props) {
+  const { period = 'last_30d', client: clientId } = await searchParams
+  const session = await auth()
+  const user = session?.user as any
+  const isAdmin = user?.role === 'ADMIN'
+
+  // Busca clientes com meta configurado (só para admin)
+  let clients: { id: string; name: string }[] = []
+  if (isAdmin) {
+    const supabase = createAdminSupabase()
+    const { data } = await supabase
+      .from('clients')
+      .select('id, name')
+      .order('name')
+    clients = data ?? []
+  }
+
+  let campaigns: Awaited<ReturnType<typeof getMetaCampaigns>> = []
+  let error = ''
+
+  const effectiveClientId = isAdmin ? clientId : user?.client_id
+
+  if (effectiveClientId) {
+    try {
+      campaigns = await getMetaCampaigns(period, effectiveClientId)
+    } catch (err: any) {
+      error = err.message
+    }
+  }
+
   return (
-    <div className="p-6 space-y-6 max-w-[900px]">
-      <div>
-        <h1 className="text-xl font-bold flex items-center gap-2">
-          <Megaphone className="w-5 h-5 text-primary" /> Meta Ads
-        </h1>
-        <p className="text-sm text-muted-foreground mt-0.5">
-          Integração com Meta Ads e Conversions API
-        </p>
+    <div className="p-6 space-y-6 max-w-[1100px]">
+      <div className="flex items-start justify-between">
+        <div>
+          <h1 className="text-xl font-bold flex items-center gap-2">
+            <Megaphone className="w-5 h-5 text-primary" /> Meta Ads
+          </h1>
+          <p className="text-sm text-muted-foreground mt-0.5">
+            Performance das campanhas no Meta Ads
+          </p>
+        </div>
+        {isAdmin && (
+          <MetaAdsClientSelect clients={clients} selectedClient={clientId} period={period} />
+        )}
       </div>
 
-      <Card className="bg-card border-border/50">
-        <CardHeader>
-          <CardTitle className="text-sm">Como funciona a integração</CardTitle>
-        </CardHeader>
-        <CardContent className="space-y-4">
-          <div className="grid grid-cols-1 md:grid-cols-3 gap-3">
-            {[
-              { step: '1', title: 'Lead chega no WhatsApp', desc: 'Webhook captura automaticamente com dados do anúncio (campanha, conjunto, criativo)', color: 'text-blue-400 bg-blue-500/10' },
-              { step: '2', title: 'Qualificado', desc: 'Ao marcar como Qualificado → dispara evento Lead na Meta CAPI', color: 'text-emerald-400 bg-emerald-500/10' },
-              { step: '3', title: 'Vendido', desc: 'Ao marcar como Vendido → dispara evento Purchase com valor na Meta CAPI', color: 'text-violet-400 bg-violet-500/10' },
-            ].map(item => (
-              <div key={item.step} className={`p-4 rounded-lg border border-border/50 ${item.color.split(' ')[1]}`}>
-                <div className={`text-lg font-bold font-mono ${item.color.split(' ')[0]}`}>{item.step}</div>
-                <div className="text-sm font-semibold mt-1">{item.title}</div>
-                <div className="text-xs text-muted-foreground mt-1">{item.desc}</div>
-              </div>
-            ))}
-          </div>
+      {isAdmin && !clientId && (
+        <Card className="bg-card border-border/50">
+          <CardContent className="p-8 text-center">
+            <Megaphone className="w-8 h-8 text-muted-foreground mx-auto mb-3" />
+            <p className="text-sm font-medium">Selecione um cliente</p>
+            <p className="text-xs text-muted-foreground mt-1">
+              Escolha um cliente no seletor acima para ver as campanhas.
+            </p>
+          </CardContent>
+        </Card>
+      )}
 
-          <div className="bg-secondary/40 rounded-lg p-4 space-y-2 text-xs text-muted-foreground">
-            <p className="font-semibold text-foreground text-sm">Para ativar:</p>
-            <p>1. Cadastre o cliente em <strong className="text-foreground">Clientes</strong> com o Account ID e Access Token da Meta</p>
-            <p>2. Configure o Pixel ID do cliente</p>
-            <p>3. Os eventos serão disparados automaticamente ao mudar o status do lead</p>
-          </div>
-        </CardContent>
-      </Card>
+      {effectiveClientId && error && (
+        <Card className="bg-destructive/10 border-destructive/30">
+          <CardContent className="p-4">
+            <p className="text-sm text-destructive font-medium">Erro ao conectar com a Meta API</p>
+            <p className="text-xs text-muted-foreground mt-1">{error}</p>
+            <p className="text-xs text-muted-foreground mt-2">
+              Verifique se o Access Token e o Account ID estão configurados corretamente em Clientes.
+            </p>
+          </CardContent>
+        </Card>
+      )}
+
+      {effectiveClientId && !error && campaigns.length === 0 && (
+        <Card className="bg-card border-border/50">
+          <CardContent className="p-8 text-center">
+            <Megaphone className="w-8 h-8 text-muted-foreground mx-auto mb-3" />
+            <p className="text-sm font-medium">Nenhuma campanha encontrada</p>
+            <p className="text-xs text-muted-foreground mt-1">
+              Verifique se o Access Token e Account ID estão configurados em Clientes,
+              ou se há campanhas ativas no período selecionado.
+            </p>
+          </CardContent>
+        </Card>
+      )}
+
+      {campaigns.length > 0 && (
+        <MetaAdsDashboard campaigns={campaigns} period={period} />
+      )}
     </div>
   )
 }

@@ -24,10 +24,9 @@ const adsNav = [
   { href: '/google-ads', label: 'Google Ads', icon: BarChart3, badge: 'Em breve' },
 ]
 
-const settingsNav = [
+const adminOnlyNav = [
   { href: '/clientes', label: 'Clientes', icon: Building2 },
   { href: '/clientes/usuarios', label: 'Usuários', icon: UserPlus },
-  { href: '/configuracoes', label: 'Configurações', icon: Settings },
 ]
 
 interface SidebarProps {
@@ -106,11 +105,16 @@ export function Sidebar({ role, userName, userEmail }: SidebarProps) {
             <p className="px-3 text-[10px] font-semibold uppercase tracking-wider text-muted-foreground/60 mb-1">
               Administração
             </p>
-            {settingsNav.map(item => (
+            {adminOnlyNav.map(item => (
               <NavItem key={item.href} {...item} />
             ))}
           </div>
         )}
+
+        {/* Configurações — todos os usuários */}
+        <div className="space-y-1">
+          <NavItem href="/configuracoes" label="Configurações" icon={Settings} />
+        </div>
       </nav>
 
       <Separator className="opacity-50" />

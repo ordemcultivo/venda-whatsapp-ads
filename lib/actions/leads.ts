@@ -1,6 +1,5 @@
 'use server'
 
-import { createClient } from '@/lib/supabase/server'
 import { createClient as createAdminSupabase } from '@supabase/supabase-js'
 import { auth } from '@/lib/auth'
 import { revalidatePath } from 'next/cache'
@@ -24,17 +23,19 @@ async function getClientFilter() {
 }
 
 export async function getLeads(clientId?: string, period: string = '30d'): Promise<Lead[]> {
-  const supabase = await createClient()
+  const supabase = adminSupabase()
   const filterClientId = clientId ?? (await getClientFilter())
 
-  const days = period === '7d' ? 7 : period === '30d' ? 30 : period === '90d' ? 90 : 30
-  const since = subDays(new Date(), days).toISOString()
+  const days = period === '7d' ? 7 : period === '30d' ? 30 : period === '90d' ? 90 : period === '365d' ? 365 : null
 
   let query = supabase
     .from('leads')
     .select('*')
-    .gte('contacted_at', since)
     .order('contacted_at', { ascending: false })
+
+  if (days !== null) {
+    query = query.gte('contacted_at', subDays(new Date(), days).toISOString())
+  }
 
   if (filterClientId) {
     query = query.eq('client_id', filterClientId)
@@ -91,7 +92,7 @@ export async function updateLeadStatus(
   status: LeadStatus,
   conversionValue?: number
 ) {
-  const supabase = await createClient()
+  const supabase = adminSupabase()
 
   const updateData: any = { status }
   if (conversionValue !== undefined) updateData.conversion_value = conversionValue
@@ -159,7 +160,7 @@ async function fireCapiEvent(leadId: string, status: LeadStatus, conversionValue
 }
 
 export async function getClients() {
-  const supabase = await createClient()
+  const supabase = adminSupabase()
   const { data, error } = await supabase
     .from('clients')
     .select('id, name, slug')

@@ -54,17 +54,20 @@ function extractContent(data: EvolutionPayload['data']): string {
 
 export async function POST(req: NextRequest) {
   try {
-    // Valida secret
-    const secret = req.headers.get('x-webhook-secret') ?? req.nextUrl.searchParams.get('secret')
-    if (secret !== process.env.WEBHOOK_SECRET) {
+    // Valida secret apenas se enviado (Evolution API não envia secret por padrão)
+    const secret =
+      req.headers.get('x-webhook-secret') ??
+      req.nextUrl.searchParams.get('secret')
+    if (secret && secret !== process.env.WEBHOOK_SECRET) {
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
     }
 
     const payload: EvolutionPayload = await req.json()
 
     // Só processa mensagens recebidas (inbound)
-    if (payload.event !== 'messages.upsert') {
-      return NextResponse.json({ ok: true, skipped: true })
+    const eventNorm = payload.event?.toLowerCase().replace('_', '.')
+    if (eventNorm !== 'messages.upsert') {
+      return NextResponse.json({ ok: true, skipped: payload.event })
     }
 
     const { data } = payload

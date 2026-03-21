@@ -1,6 +1,6 @@
 import { auth } from '@/lib/auth'
 import { redirect } from 'next/navigation'
-import { createClient } from '@/lib/supabase/server'
+import { createAdminSupabase } from '@/lib/supabase/admin'
 import { ClientesTable } from '@/components/dashboard/clientes-table'
 import { Users } from 'lucide-react'
 
@@ -9,7 +9,7 @@ export default async function ClientesPage() {
   const user = session?.user as any
   if (user?.role !== 'ADMIN') redirect('/dashboard')
 
-  const supabase = await createClient()
+  const supabase = createAdminSupabase()
   const { data: clients } = await supabase
     .from('clients')
     .select('*')
