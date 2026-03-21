@@ -1,10 +1,11 @@
 'use client'
 
 import { useState } from 'react'
-import { Badge } from '@/components/ui/badge'
 import { Button } from '@/components/ui/button'
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table'
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select'
+import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog'
+import { Input } from '@/components/ui/input'
+import { Label } from '@/components/ui/label'
 import { format } from 'date-fns'
 import { ptBR } from 'date-fns/locale'
 import { CheckCircle2, Star, RefreshCw, Facebook, Instagram, Globe } from 'lucide-react'
@@ -39,14 +40,54 @@ interface LeadsTableProps {
 
 export function LeadsTable({ leads, onStatusChange }: LeadsTableProps) {
   const [updating, setUpdating] = useState<string | null>(null)
+  const [saleDialog, setSaleDialog] = useState<{ leadId: string; name: string } | null>(null)
+  const [saleValue, setSaleValue] = useState('')
 
-  async function handleStatus(leadId: string, status: LeadStatus) {
+  async function handleStatus(leadId: string, status: LeadStatus, value?: number) {
     setUpdating(leadId)
-    await onStatusChange?.(leadId, status)
+    await onStatusChange?.(leadId, status, value)
     setUpdating(null)
   }
 
+  async function confirmSale() {
+    if (!saleDialog) return
+    const value = saleValue ? parseFloat(saleValue.replace(',', '.')) : undefined
+    setSaleDialog(null)
+    setSaleValue('')
+    await handleStatus(saleDialog.leadId, 'sold', value)
+  }
+
   return (
+    <>
+    <Dialog open={!!saleDialog} onOpenChange={open => { if (!open) { setSaleDialog(null); setSaleValue('') } }}>
+      <DialogContent className="max-w-sm">
+        <DialogHeader>
+          <DialogTitle>Registrar Venda</DialogTitle>
+        </DialogHeader>
+        <div className="space-y-4 pt-2">
+          <p className="text-sm text-muted-foreground">Lead: <span className="text-foreground font-medium">{saleDialog?.name}</span></p>
+          <div className="space-y-1.5">
+            <Label htmlFor="sale-value">Valor da venda (opcional)</Label>
+            <div className="relative">
+              <span className="absolute left-3 top-1/2 -translate-y-1/2 text-sm text-muted-foreground">R$</span>
+              <Input
+                id="sale-value"
+                className="pl-8"
+                placeholder="0,00"
+                value={saleValue}
+                onChange={e => setSaleValue(e.target.value)}
+                onKeyDown={e => e.key === 'Enter' && confirmSale()}
+                autoFocus
+              />
+            </div>
+          </div>
+          <div className="flex gap-2 justify-end">
+            <Button variant="ghost" size="sm" onClick={() => { setSaleDialog(null); setSaleValue('') }}>Cancelar</Button>
+            <Button size="sm" onClick={confirmSale} className="bg-violet-600 hover:bg-violet-700">Confirmar Venda</Button>
+          </div>
+        </div>
+      </DialogContent>
+    </Dialog>
     <div className="rounded-lg border border-border/50 overflow-hidden">
       <Table>
         <TableHeader>
@@ -127,7 +168,7 @@ export function LeadsTable({ leads, onStatusChange }: LeadsTableProps) {
                       className="w-7 h-7 text-violet-400 hover:bg-violet-500/10"
                       title="Converter (Vendido)"
                       disabled={isUpdating || lead.status === 'sold'}
-                      onClick={() => handleStatus(lead.id, 'sold')}
+                      onClick={() => setSaleDialog({ leadId: lead.id, name: lead.name ?? lead.phone })}
                     >
                       <CheckCircle2 className="w-3.5 h-3.5" />
                     </Button>
@@ -140,5 +181,6 @@ export function LeadsTable({ leads, onStatusChange }: LeadsTableProps) {
         </TableBody>
       </Table>
     </div>
+    </>
   )
 }

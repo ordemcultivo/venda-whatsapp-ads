@@ -6,6 +6,14 @@ const supabase = createClient(
   process.env.SUPABASE_SERVICE_ROLE_KEY!
 )
 
+interface ExternalAdReply {
+  title?: string
+  body?: string
+  sourceType?: string
+  sourceId?: string
+  sourceUrl?: string
+}
+
 interface EvolutionPayload {
   event: string
   instance: string
@@ -17,13 +25,30 @@ interface EvolutionPayload {
     }
     message?: {
       conversation?: string
-      extendedTextMessage?: { text: string }
-      imageMessage?: { caption?: string }
+      extendedTextMessage?: {
+        text?: string
+        contextInfo?: { externalAdReply?: ExternalAdReply }
+      }
+      imageMessage?: {
+        caption?: string
+        contextInfo?: { externalAdReply?: ExternalAdReply }
+      }
+      buttonsResponseMessage?: {
+        contextInfo?: { externalAdReply?: ExternalAdReply }
+      }
     }
     messageType: string
     messageTimestamp: number
     pushName?: string
     source?: string
+    referral?: {
+      sourceUrl?: string
+      sourceId?: string
+      sourceType?: string
+      headline?: string
+      body?: string
+      ctwaClid?: string
+    }
   }
   ads_data?: {
     campaign_id?: string
@@ -54,6 +79,51 @@ function detectPlatform(ads: any): string {
   if (ads.campaign_name?.toLowerCase().includes('instagram')) return 'instagram'
   if (ads.campaign_id) return 'facebook'
   return 'unknown'
+}
+
+function extractAdsData(payload: EvolutionPayload) {
+  // Prioridade 1: ads_data manual (caso customizado)
+  if (payload.ads_data && Object.keys(payload.ads_data).length > 0) {
+    return payload.ads_data
+  }
+
+  // Prioridade 2: referral (Click to WhatsApp — Meta envia ctwaClid aqui)
+  const referral = payload.data.referral
+  if (referral?.ctwaClid || referral?.sourceId) {
+    const isInstagram = referral.sourceUrl?.includes('instagram')
+    return {
+      platform:    isInstagram ? 'instagram' : 'facebook',
+      click_id:    referral.ctwaClid ?? null,
+      ad_id:       referral.sourceId ?? null,
+      ad_name:     referral.headline ?? null,
+      campaign_id: null,
+      campaign_name: null,
+      adset_id:    null,
+      adset_name:  null,
+    }
+  }
+
+  // Prioridade 3: contextInfo.externalAdReply dentro da mensagem
+  const msg = payload.data.message
+  const adReply =
+    msg?.extendedTextMessage?.contextInfo?.externalAdReply ??
+    msg?.imageMessage?.contextInfo?.externalAdReply ??
+    msg?.buttonsResponseMessage?.contextInfo?.externalAdReply
+
+  if (adReply?.sourceId) {
+    return {
+      platform:    'facebook',
+      ad_id:       adReply.sourceId ?? null,
+      ad_name:     adReply.title ?? null,
+      click_id:    null,
+      campaign_id: null,
+      campaign_name: null,
+      adset_id:    null,
+      adset_name:  null,
+    }
+  }
+
+  return {}
 }
 
 export async function processWhatsappWebhook(req: NextRequest): Promise<NextResponse> {
@@ -122,8 +192,8 @@ export async function processWhatsappWebhook(req: NextRequest): Promise<NextResp
     let leadId = existingLead?.id
 
     if (!leadId) {
-      const ads = payload.ads_data ?? {}
-      const platform = ads.platform ?? detectPlatform(ads)
+      const ads = extractAdsData(payload)
+      const platform = (ads as any).platform ?? detectPlatform(ads)
 
       const { data: newLead, error: leadError } = await supabase
         .from('leads')
