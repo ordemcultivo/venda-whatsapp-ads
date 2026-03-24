@@ -29,7 +29,49 @@ To learn more about Next.js, take a look at the following resources:
 
 You can check out [the Next.js GitHub repository](https://github.com/vercel/next.js) - your feedback and contributions are welcome!
 
-## Deploy on Vercel
+## Deployment
+
+### Docker Deployment (Production Server)
+
+This project is deployed via Docker on a VPS server.
+
+**Prerequisites:**
+- SSH access to the server
+- GitHub SSH key configured on the server
+
+**Automatic Deployment:**
+```bash
+./deploy.sh [message]
+```
+
+This script will:
+1. Commit changes locally with your message
+2. Push to GitHub (`main` branch)
+3. Connect to the server via SSH
+4. Pull the latest code
+5. Rebuild and restart Docker containers
+
+**Manual Deployment:**
+```bash
+# On the server:
+cd /root/venda-whatsapp-ads
+git pull origin main
+docker compose up --build -d --remove-orphans
+docker compose logs -f
+```
+
+**Configuration:**
+Create `.deploy.env` with your server details:
+```env
+SSH_HOST=91.99.98.84
+SSH_PORT=2277
+SSH_USER=root
+SSH_KEY=~/.ssh/id_venda
+REMOTE_DIR=/root/venda-whatsapp-ads
+GIT_BRANCH=main
+```
+
+### Deploy on Vercel
 
 The easiest way to deploy your Next.js app is to use the [Vercel Platform](https://vercel.com/new?utm_medium=default-template&filter=next.js&utm_source=create-next-app&utm_campaign=create-next-app-readme) from the creators of Next.js.
 

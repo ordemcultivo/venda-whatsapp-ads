@@ -350,7 +350,7 @@ export async function processWhatsappWebhook(req: NextRequest): Promise<NextResp
       console.log('[webhook] Novo lead criado:', leadId)
 
       // Dispara evento CAPI Lead se veio de anúncio
-      if (ads.ad_id || ads.click_id) {
+      if (leadId && (ads.ad_id || ads.click_id)) {
         fireCapiLeadEvent(leadId, client.id, phone, data.pushName ?? null, ads.click_id ?? null).catch(
           err => console.error('[webhook] Erro CAPI Lead:', err.message)
         )
