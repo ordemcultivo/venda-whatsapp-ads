@@ -50,11 +50,13 @@ export async function getDashboardStats(clientId?: string, period: string = '30d
   const leads = await getLeads(clientId, period)
 
   const total = leads.length
+  const adLeads = leads.filter(l => l.ad_id || l.campaign_id)
   const sold = leads.filter(l => l.status === 'sold')
   const revenue = sold.reduce((acc, l) => acc + (l.conversion_value ?? 0), 0)
 
   return {
     total_leads: total,
+    ad_leads: adLeads.length,
     new_leads: leads.filter(l => l.status === 'new').length,
     qualified_leads: leads.filter(l => l.status === 'qualified').length,
     sold_leads: sold.length,
@@ -118,45 +120,105 @@ async function fireCapiEvent(leadId: string, status: LeadStatus, conversionValue
   if (status !== 'qualified' && status !== 'sold') return
 
   const db = adminSupabase()
+  // Lead já foi enviado pelo webhook ao chegar — qualificado vira InitiateCheckout
+  const eventName = status === 'sold' ? 'Purchase' : 'InitiateCheckout'
 
-  // Busca lead + meta_account do cliente
+  async function logCapi(
+    clientId: string,
+    result: { status: 'sent' | 'failed' | 'skipped'; skip_reason?: string; pixel_id?: string; events_received?: number; fbtrace_id?: string; error_message?: string }
+  ) {
+    await db.from('capi_events').insert({
+      lead_id:         leadId,
+      client_id:       clientId,
+      event_name:      eventName,
+      ...result,
+    }).then(({ error }) => {
+      if (error) console.error('[capi] Erro ao salvar log:', error.message)
+    })
+  }
+
+  // Busca lead
   const { data: lead } = await db
     .from('leads')
-    .select('*, clients(id, meta_accounts(account_id, access_token))')
+    .select('*')
     .eq('id', leadId)
     .single()
 
-  if (!lead) return
+  if (!lead) {
+    console.warn('[capi] Lead não encontrado:', leadId)
+    return
+  }
 
-  const metaAccounts = (lead as any).clients?.meta_accounts ?? []
-  if (metaAccounts.length === 0) return // Cliente sem conta Meta configurada
-
-  const metaAccount = metaAccounts[0]
-  if (!metaAccount?.access_token) return
-
-  // Busca o pixel_id da meta_account
-  const { data: fullAccount } = await db
+  // Busca meta_account do cliente (uma query só)
+  const { data: account } = await db
     .from('meta_accounts')
-    .select('account_id, access_token, pixel_id')
+    .select('access_token, pixel_id')
     .eq('client_id', lead.client_id)
     .single()
 
-  if (!fullAccount?.access_token) return
+  if (!account) {
+    console.log('[capi] Sem meta_account para cliente:', lead.client_id)
+    await logCapi(lead.client_id, { status: 'skipped', skip_reason: 'no_meta_account' })
+    return
+  }
+  if (!account.access_token) {
+    await logCapi(lead.client_id, { status: 'skipped', skip_reason: 'no_access_token' })
+    return
+  }
+  if (!account.pixel_id) {
+    await logCapi(lead.client_id, { status: 'skipped', skip_reason: 'no_pixel_id' })
+    return
+  }
 
-  const pixelId = (fullAccount as any).pixel_id
-  if (!pixelId) return
+  // event_id determinístico: mesmo lead + mesmo evento → Meta deduplica automaticamente
+  const eventId = `${leadId}_${eventName}`
 
-  await sendCapiEvent({
-    pixelId,
-    accessToken: fullAccount.access_token,
-    eventName:   status === 'sold' ? 'Purchase' : 'Lead',
+  const result = await sendCapiEvent({
+    pixelId:     account.pixel_id,
+    accessToken: account.access_token,
+    eventName,
+    eventId,
     phone:       lead.phone,
-    firstName:   lead.name   ?? undefined,
+    firstName:   lead.name      ?? undefined,
     lastName:    lead.last_name ?? undefined,
-    clickId:     lead.click_id ?? undefined,
+    clickId:     lead.click_id  ?? undefined,
     value:       status === 'sold' ? (conversionValue ?? lead.conversion_value ?? undefined) : undefined,
     currency:    lead.currency ?? 'BRL',
   })
+
+  if (result.error) {
+    console.error('[capi] Falha ao enviar evento:', result.error.message)
+    await logCapi(lead.client_id, {
+      status:        'failed',
+      pixel_id:      account.pixel_id,
+      error_message: result.error.message,
+    })
+  } else {
+    console.log(`[capi] ${eventName} enviado — pixel ${account.pixel_id} | recebidos: ${result.events_received}`)
+    await logCapi(lead.client_id, {
+      status:          'sent',
+      pixel_id:        account.pixel_id,
+      events_received: result.events_received,
+      fbtrace_id:      result.fbtrace_id,
+    })
+  }
+}
+
+export async function getCapiStatusForLeads(leadIds: string[]): Promise<Record<string, 'sent' | 'failed' | 'skipped'>> {
+  if (leadIds.length === 0) return {}
+  const db = adminSupabase()
+  const { data } = await db
+    .from('capi_events')
+    .select('lead_id, status')
+    .in('lead_id', leadIds)
+    .order('created_at', { ascending: false })
+
+  // Para cada lead, pega o status do evento mais recente
+  const result: Record<string, 'sent' | 'failed' | 'skipped'> = {}
+  for (const row of data ?? []) {
+    if (!result[row.lead_id]) result[row.lead_id] = row.status
+  }
+  return result
 }
 
 export async function getClients() {

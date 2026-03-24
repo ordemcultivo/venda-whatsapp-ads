@@ -14,6 +14,7 @@ interface CapiEventData {
   pixelId: string
   accessToken: string
   eventName: 'Lead' | 'Purchase' | 'InitiateCheckout'
+  eventId?: string          // ID único para deduplicação — use leadId_EventName
   eventTime?: number
   phone?: string
   email?: string
@@ -22,9 +23,6 @@ interface CapiEventData {
   clickId?: string          // ctwa_clid (Click-to-WhatsApp) ou fbclid
   value?: number
   currency?: string
-  campaignId?: string
-  adsetId?: string
-  adId?: string
   whatsappBusinessAccountId?: string
 }
 
@@ -37,7 +35,7 @@ interface CapiResponse {
 
 export async function sendCapiEvent(data: CapiEventData): Promise<CapiResponse> {
   const {
-    pixelId, accessToken, eventName, phone, email,
+    pixelId, accessToken, eventName, eventId, phone, email,
     firstName, lastName, clickId, value, currency = 'BRL',
     whatsappBusinessAccountId,
     eventTime = Math.floor(Date.now() / 1000),
@@ -64,6 +62,7 @@ export async function sendCapiEvent(data: CapiEventData): Promise<CapiResponse> 
     data: [
       {
         event_name:        eventName,
+        event_id:          eventId,               // deduplicação: mesmo ID = Meta ignora duplicata
         event_time:        eventTime,
         action_source:     'business_messaging',  // correto para WhatsApp
         messaging_channel: 'whatsapp',
@@ -71,7 +70,6 @@ export async function sendCapiEvent(data: CapiEventData): Promise<CapiResponse> 
         custom_data:       Object.keys(customData).length > 0 ? customData : undefined,
       },
     ],
-    // test_event_code: 'TEST12345', // descomente para testar no Gerenciador de Eventos
   }
 
   const url = `https://graph.facebook.com/v19.0/${pixelId}/events?access_token=${accessToken}`

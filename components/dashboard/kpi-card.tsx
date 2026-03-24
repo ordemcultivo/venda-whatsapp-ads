@@ -7,7 +7,7 @@ interface KpiCardProps {
   value: string | number
   subtitle?: string
   icon: LucideIcon
-  color?: 'blue' | 'green' | 'purple' | 'amber'
+  color?: 'blue' | 'green' | 'purple' | 'amber' | 'pink'
   trend?: { value: number; label: string }
 }
 
@@ -16,6 +16,7 @@ const colorMap = {
   green:  { bg: 'bg-emerald-500/10', text: 'text-emerald-400', icon: 'text-emerald-400' },
   purple: { bg: 'bg-violet-500/10', text: 'text-violet-400', icon: 'text-violet-400' },
   amber:  { bg: 'bg-amber-500/10',  text: 'text-amber-400',  icon: 'text-amber-400' },
+  pink:   { bg: 'bg-pink-500/10',   text: 'text-pink-400',   icon: 'text-pink-400' },
 }
 
 export function KpiCard({ title, value, subtitle, icon: Icon, color = 'blue', trend }: KpiCardProps) {

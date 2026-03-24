@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { createClient } from '@supabase/supabase-js'
+import { sendCapiEvent } from '@/lib/meta-capi'
 
 const supabase = createClient(
   process.env.NEXT_PUBLIC_SUPABASE_URL!,
@@ -36,6 +37,16 @@ interface EvolutionPayload {
       buttonsResponseMessage?: {
         contextInfo?: { externalAdReply?: ExternalAdReply }
       }
+    }
+    // contextInfo no nível raiz do data (Evolution API v2 — CTWA ads)
+    contextInfo?: {
+      externalAdReply?: ExternalAdReply & {
+        ctwaClid?: string
+        sourceApp?: string   // 'instagram' | 'facebook'
+      }
+      conversionSource?: string          // 'FB_Ads'
+      entryPointConversionApp?: string   // 'instagram' | 'facebook'
+      entryPointConversionSource?: string // 'ctwa_ad'
     }
     messageType: string
     messageTimestamp: number
@@ -76,9 +87,42 @@ function extractContent(data: EvolutionPayload['data']): string {
 }
 
 function detectPlatform(ads: any): string {
+  if (ads.platform) return ads.platform
   if (ads.campaign_name?.toLowerCase().includes('instagram')) return 'instagram'
   if (ads.campaign_id) return 'facebook'
   return 'unknown'
+}
+
+async function enrichWithMetaAdData(adId: string, clientId: string) {
+  try {
+    const { data: account } = await supabase
+      .from('meta_accounts')
+      .select('access_token')
+      .eq('client_id', clientId)
+      .single()
+
+    if (!account?.access_token) return null
+
+    const url = `https://graph.facebook.com/v19.0/${adId}?fields=name,campaign{id,name},adset{id,name}&access_token=${account.access_token}`
+    const res = await fetch(url)
+    const json = await res.json()
+
+    if (json.error) {
+      console.log('[webhook] Meta API erro ao enriquecer ad:', json.error.message)
+      return null
+    }
+
+    return {
+      ad_name:       json.name          ?? null,
+      campaign_id:   json.campaign?.id   ?? null,
+      campaign_name: json.campaign?.name ?? null,
+      adset_id:      json.adset?.id      ?? null,
+      adset_name:    json.adset?.name    ?? null,
+    }
+  } catch (e: any) {
+    console.log('[webhook] Erro ao enriquecer com Meta API:', e.message)
+    return null
+  }
 }
 
 function extractAdsData(payload: EvolutionPayload) {
@@ -87,7 +131,7 @@ function extractAdsData(payload: EvolutionPayload) {
     return payload.ads_data
   }
 
-  // Prioridade 2: referral (Click to WhatsApp — Meta envia ctwaClid aqui)
+  // Prioridade 2: referral (Click to WhatsApp — alguns webhooks enviam ctwaClid aqui)
   const referral = payload.data.referral
   if (referral?.ctwaClid || referral?.sourceId) {
     const isInstagram = referral.sourceUrl?.includes('instagram')
@@ -103,7 +147,27 @@ function extractAdsData(payload: EvolutionPayload) {
     }
   }
 
-  // Prioridade 3: contextInfo.externalAdReply dentro da mensagem
+  // Prioridade 3: contextInfo no nível raiz do data (Evolution API v2 — formato real do CTWA)
+  const rootCtx = payload.data.contextInfo
+  const rootAdReply = rootCtx?.externalAdReply
+  if (rootAdReply?.ctwaClid || rootAdReply?.sourceId) {
+    const app = rootAdReply.sourceApp ?? rootCtx?.entryPointConversionApp ?? ''
+    const isInstagram =
+      app.toLowerCase().includes('instagram') ||
+      (rootAdReply.sourceUrl ?? '').includes('instagram')
+    return {
+      platform:    isInstagram ? 'instagram' : 'facebook',
+      click_id:    rootAdReply.ctwaClid ?? null,
+      ad_id:       rootAdReply.sourceId ?? null,
+      ad_name:     rootAdReply.title ?? null,
+      campaign_id: null,
+      campaign_name: null,
+      adset_id:    null,
+      adset_name:  null,
+    }
+  }
+
+  // Prioridade 4: contextInfo.externalAdReply dentro da mensagem (fallback)
   const msg = payload.data.message
   const adReply =
     msg?.extendedTextMessage?.contextInfo?.externalAdReply ??
@@ -124,6 +188,34 @@ function extractAdsData(payload: EvolutionPayload) {
   }
 
   return {}
+}
+
+async function fireCapiLeadEvent(
+  leadId: string,
+  clientId: string,
+  phone: string,
+  name: string | null,
+  clickId: string | null,
+) {
+  const { data: account } = await supabase
+    .from('meta_accounts')
+    .select('access_token, pixel_id')
+    .eq('client_id', clientId)
+    .single()
+
+  if (!account?.access_token || !account?.pixel_id) return
+
+  await sendCapiEvent({
+    pixelId:     account.pixel_id,
+    accessToken: account.access_token,
+    eventName:   'Lead',
+    eventId:     `${leadId}_Lead`,   // deduplicação: mesmo que fireCapiEvent tente enviar de novo
+    phone,
+    firstName:   name ?? undefined,
+    clickId:     clickId ?? undefined,
+  })
+
+  console.log('[webhook] CAPI Lead disparado para lead:', leadId)
 }
 
 export async function processWhatsappWebhook(req: NextRequest): Promise<NextResponse> {
@@ -179,21 +271,55 @@ export async function processWhatsappWebhook(req: NextRequest): Promise<NextResp
 
     console.log('[webhook] Cliente encontrado:', client.id)
 
-    // Verifica se já existe lead com esse telefone
-    const { data: existingLead } = await supabase
+    const ads = extractAdsData(payload)
+
+    // Deduplicação: ignora se já existe lead do mesmo telefone nos últimos 7 dias
+    const sevenDaysAgo = new Date(Date.now() - 7 * 24 * 60 * 60 * 1000).toISOString()
+    const { data: recentLead } = await supabase
       .from('leads')
-      .select('id')
+      .select('id, ad_id, campaign_id')
       .eq('client_id', client.id)
       .eq('phone', phone)
-      .order('created_at', { ascending: false })
+      .gte('contacted_at', sevenDaysAgo)
+      .order('contacted_at', { ascending: false })
       .limit(1)
       .single()
 
-    let leadId = existingLead?.id
+    let leadId: string | undefined = recentLead?.id
+    let isNewLead = false
 
-    if (!leadId) {
-      const ads = extractAdsData(payload)
-      const platform = (ads as any).platform ?? detectPlatform(ads)
+    if (recentLead) {
+      // Lead existente na janela de 7 dias — enriquece retroativamente se ainda sem ad_id
+      if (!recentLead.ad_id && ads.ad_id) {
+        const enriched = await enrichWithMetaAdData(ads.ad_id, client.id)
+        const update: Record<string, any> = {
+          ad_id:    ads.ad_id,
+          click_id: ads.click_id ?? null,
+          platform: detectPlatform(ads),
+        }
+        if (enriched) {
+          update.ad_name       = enriched.ad_name
+          update.campaign_id   = enriched.campaign_id
+          update.campaign_name = enriched.campaign_name
+          update.adset_id      = enriched.adset_id
+          update.adset_name    = enriched.adset_name
+          console.log('[webhook] Lead retroativamente enriquecido:', recentLead.id, '|', enriched.ad_name)
+        }
+        await supabase.from('leads').update(update).eq('id', recentLead.id)
+      } else {
+        console.log('[webhook] Lead na janela de 7 dias, ignorando duplicata:', recentLead.id)
+      }
+    } else {
+      // Novo lead
+      const platform = detectPlatform(ads)
+
+      let enriched: Awaited<ReturnType<typeof enrichWithMetaAdData>> = null
+      if (ads.ad_id) {
+        enriched = await enrichWithMetaAdData(ads.ad_id, client.id)
+        if (enriched) {
+          console.log('[webhook] Enriquecido com Meta API:', enriched.ad_name, '|', enriched.campaign_name)
+        }
+      }
 
       const { data: newLead, error: leadError } = await supabase
         .from('leads')
@@ -202,12 +328,12 @@ export async function processWhatsappWebhook(req: NextRequest): Promise<NextResp
           phone,
           name:          data.pushName ?? null,
           platform,
-          campaign_id:   ads.campaign_id ?? null,
-          campaign_name: ads.campaign_name ?? null,
-          adset_id:      ads.adset_id ?? null,
-          adset_name:    ads.adset_name ?? null,
+          campaign_id:   enriched?.campaign_id   ?? ads.campaign_id   ?? null,
+          campaign_name: enriched?.campaign_name ?? ads.campaign_name ?? null,
+          adset_id:      enriched?.adset_id      ?? ads.adset_id      ?? null,
+          adset_name:    enriched?.adset_name    ?? ads.adset_name    ?? null,
           ad_id:         ads.ad_id ?? null,
-          ad_name:       ads.ad_name ?? null,
+          ad_name:       enriched?.ad_name ?? ads.ad_name ?? null,
           click_id:      ads.click_id ?? null,
           contacted_at:  new Date(data.messageTimestamp * 1000).toISOString(),
         })
@@ -220,9 +346,15 @@ export async function processWhatsappWebhook(req: NextRequest): Promise<NextResp
       }
 
       leadId = newLead.id
+      isNewLead = true
       console.log('[webhook] Novo lead criado:', leadId)
-    } else {
-      console.log('[webhook] Lead existente:', leadId)
+
+      // Dispara evento CAPI Lead se veio de anúncio
+      if (ads.ad_id || ads.click_id) {
+        fireCapiLeadEvent(leadId, client.id, phone, data.pushName ?? null, ads.click_id ?? null).catch(
+          err => console.error('[webhook] Erro CAPI Lead:', err.message)
+        )
+      }
     }
 
     // Salva a mensagem

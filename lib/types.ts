@@ -61,6 +61,7 @@ export interface LeadStatusHistory {
 
 export interface DashboardStats {
   total_leads: number
+  ad_leads: number
   new_leads: number
   qualified_leads: number
   sold_leads: number

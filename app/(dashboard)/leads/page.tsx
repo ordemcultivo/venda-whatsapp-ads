@@ -1,5 +1,5 @@
 import { auth } from '@/lib/auth'
-import { getLeads, getClients, updateLeadStatus } from '@/lib/actions/leads'
+import { getLeads, getClients, updateLeadStatus, getCapiStatusForLeads } from '@/lib/actions/leads'
 import { LeadsTable } from '@/components/dashboard/leads-table'
 import { DashboardFilters } from '@/components/dashboard/dashboard-filters'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
@@ -23,6 +23,8 @@ export default async function LeadsPage({ searchParams }: PageProps) {
     getLeads(clientId, period),
     isAdmin ? getClients() : Promise.resolve([]),
   ])
+
+  const capiStatus = await getCapiStatusForLeads(leads.map(l => l.id))
 
   async function handleStatusChange(leadId: string, status: LeadStatus, value?: number) {
     'use server'
@@ -58,7 +60,7 @@ export default async function LeadsPage({ searchParams }: PageProps) {
           </div>
         </CardHeader>
         <CardContent className="p-0 pb-1">
-          <LeadsTable leads={leads} onStatusChange={handleStatusChange} />
+          <LeadsTable leads={leads} onStatusChange={handleStatusChange} capiStatus={capiStatus} />
         </CardContent>
       </Card>
     </div>

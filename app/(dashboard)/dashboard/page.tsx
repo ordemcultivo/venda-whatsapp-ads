@@ -8,7 +8,7 @@ import { LeadsTable } from '@/components/dashboard/leads-table'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import { Skeleton } from '@/components/ui/skeleton'
 import { DashboardFilters } from '@/components/dashboard/dashboard-filters'
-import { Users, CheckCircle2, DollarSign, TrendingUp } from 'lucide-react'
+import { Users, CheckCircle2, DollarSign, TrendingUp, Megaphone } from 'lucide-react'
 
 interface PageProps {
   searchParams: Promise<{ client?: string; period?: string }>
@@ -49,13 +49,20 @@ export default async function DashboardPage({ searchParams }: PageProps) {
       </div>
 
       {/* KPIs */}
-      <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
+      <div className="grid grid-cols-2 lg:grid-cols-5 gap-4">
         <KpiCard
           title="Total de Leads"
           value={stats.total_leads}
           subtitle="conversas iniciadas"
           icon={Users}
           color="blue"
+        />
+        <KpiCard
+          title="Leads de Anúncio"
+          value={stats.ad_leads}
+          subtitle={stats.total_leads > 0 ? `${Math.round((stats.ad_leads / stats.total_leads) * 100)}% do total` : 'do total'}
+          icon={Megaphone}
+          color="pink"
         />
         <KpiCard
           title="Vendas Realizadas"

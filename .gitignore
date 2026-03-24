@@ -1,5 +1,8 @@
 # See https://help.github.com/articles/ignoring-files/ for more about ignoring files.
 
+# Deploy config (contém dados do servidor — nunca commitar)
+.deploy.env
+
 # dependencies
 /node_modules
 /.pnp
