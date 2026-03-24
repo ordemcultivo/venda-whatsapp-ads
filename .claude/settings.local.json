@@ -17,7 +17,8 @@
       "mcp__claude_ai_roberto_tracker__execute_sql",
       "Bash(curl -s \"https://graph.facebook.com/v19.0/120239006099340372?fields=name,campaign%7Bid,name%7D,adset%7Bid,name%7D&access_token=EAAUDydZCrsRYBRD4VIJ4B7R71LW2huZBiaupKfBvTsP6uPpYKh4FZAG0XyuzMmcQvWp63YNfhtU8djiJ6YJ4wUOuRwVCrn5uuNA6Er3jF9eCKOjZBkZC5pOdxs0EHKPZBdyz6eNKWuQbtZAnlHJ3TMoii1SFCGugZB6iNH1iFwLKBldDqiSZBWRqkXh3bYXngZCAZDZD\")",
       "Skill(commit-commands:commit)",
-      "Skill(commit-commands:commit:*)"
+      "Skill(commit-commands:commit:*)",
+      "Bash(bash ./deploy.sh)"
     ]
   }
 }
