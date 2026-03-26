@@ -167,6 +167,23 @@ function extractAdsData(payload: EvolutionPayload) {
     }
   }
 
+  // Prioridade 3.5: conversionSource no contextInfo raiz (CTWA sem externalAdReply — padrão MM Clean / Yas)
+  // A Evolution API v2 às vezes omite externalAdReply mas envia conversionSource: 'FB_Ads'
+  if (rootCtx?.conversionSource === 'FB_Ads' || rootCtx?.entryPointConversionSource === 'ctwa_ad') {
+    const app = rootCtx?.entryPointConversionApp ?? ''
+    const isInstagram = app.toLowerCase().includes('instagram')
+    return {
+      platform:      isInstagram ? 'instagram' : 'facebook',
+      click_id:      null,
+      ad_id:         null,
+      ad_name:       null,
+      campaign_id:   null,
+      campaign_name: null,
+      adset_id:      null,
+      adset_name:    null,
+    }
+  }
+
   // Prioridade 4: contextInfo.externalAdReply dentro da mensagem (fallback)
   const msg = payload.data.message
   const adReply =
