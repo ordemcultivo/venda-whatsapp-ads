@@ -32,7 +32,7 @@ export function RelatoriosCharts({ leads }: Props) {
 
   const soldLeads    = leads.filter(l => l.status === 'sold')
   const soldByPlatform  = countBy(soldLeads, 'platform')
-  const soldByCampaign  = countBy(soldLeads.filter(l => l.campaign_name), 'campaign_name').slice(0, 8)
+  const soldByAd        = countBy(soldLeads.filter(l => l.ad_name), 'ad_name').slice(0, 8)
 
   if (leads.length === 0) {
     return (
@@ -113,11 +113,11 @@ export function RelatoriosCharts({ leads }: Props) {
           <CardTitle className="text-sm font-semibold">📢 Anúncios que mais trouxeram Leads</CardTitle>
         </CardHeader>
         <CardContent>
-          {byCampaign.length === 0 ? (
-            <p className="text-xs text-muted-foreground py-8 text-center">Sem dados de campanha no período</p>
+          {byAd.length === 0 ? (
+            <p className="text-xs text-muted-foreground py-8 text-center">Sem dados de anúncio no período</p>
           ) : (
             <ResponsiveContainer width="100%" height={240}>
-              <BarChart data={byCampaign} layout="vertical" margin={{ left: 0, right: 16 }}>
+              <BarChart data={byAd} layout="vertical" margin={{ left: 0, right: 16 }}>
                 <CartesianGrid strokeDasharray="3 3" stroke="oklch(1 0 0 / 6%)" horizontal={false} />
                 <XAxis type="number" tick={{ fontSize: 10, fill: 'oklch(0.65 0 0)' }} tickLine={false} axisLine={false} />
                 <YAxis type="category" dataKey="name" tick={{ fontSize: 10, fill: 'oklch(0.65 0 0)' }} tickLine={false} axisLine={false} width={140} />
@@ -135,11 +135,11 @@ export function RelatoriosCharts({ leads }: Props) {
           <CardTitle className="text-sm font-semibold">🏅 Anúncios que mais geraram Vendas</CardTitle>
         </CardHeader>
         <CardContent>
-          {soldByCampaign.length === 0 ? (
+          {soldByAd.length === 0 ? (
             <p className="text-xs text-muted-foreground py-8 text-center">Sem vendas registradas no período</p>
           ) : (
             <ResponsiveContainer width="100%" height={240}>
-              <BarChart data={soldByCampaign} layout="vertical" margin={{ left: 0, right: 16 }}>
+              <BarChart data={soldByAd} layout="vertical" margin={{ left: 0, right: 16 }}>
                 <CartesianGrid strokeDasharray="3 3" stroke="oklch(1 0 0 / 6%)" horizontal={false} />
                 <XAxis type="number" tick={{ fontSize: 10, fill: 'oklch(0.65 0 0)' }} tickLine={false} axisLine={false} />
                 <YAxis type="category" dataKey="name" tick={{ fontSize: 10, fill: 'oklch(0.65 0 0)' }} tickLine={false} axisLine={false} width={140} />
