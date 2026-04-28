@@ -13,7 +13,7 @@ function hash(value: string): string {
 interface CapiEventData {
   pixelId: string
   accessToken: string
-  eventName: 'Lead' | 'Purchase' | 'InitiateCheckout'
+  eventName: 'LeadSubmitted' | 'Lead' | 'Purchase' | 'InitiateCheckout'
   eventId?: string          // ID único para deduplicação — use leadId_EventName
   eventTime?: number
   phone?: string
@@ -74,19 +74,24 @@ export async function sendCapiEvent(data: CapiEventData): Promise<CapiResponse> 
 
   const url = `https://graph.facebook.com/v19.0/${pixelId}/events?access_token=${accessToken}`
 
-  const res = await fetch(url, {
-    method:  'POST',
-    headers: { 'Content-Type': 'application/json' },
-    body:    JSON.stringify(payload),
-  })
+  try {
+    const res = await fetch(url, {
+      method:  'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body:    JSON.stringify(payload),
+    })
 
-  const json: CapiResponse = await res.json()
+    const json: CapiResponse = await res.json()
 
-  if (!res.ok || json.error) {
-    console.error('[meta-capi] Erro ao enviar evento:', json.error ?? json)
-  } else {
-    console.log(`[meta-capi] Evento ${eventName} enviado — pixel ${pixelId} | recebidos: ${json.events_received}`)
+    if (!res.ok || json.error) {
+      console.error('[meta-capi] Erro ao enviar evento:', json.error ?? json)
+    } else {
+      console.log(`[meta-capi] Evento ${eventName} enviado — pixel ${pixelId} | recebidos: ${json.events_received}`)
+    }
+
+    return json
+  } catch (err: any) {
+    console.error('[meta-capi] Falha de rede ao enviar evento:', err.message ?? err)
+    return {}
   }
-
-  return json
 }

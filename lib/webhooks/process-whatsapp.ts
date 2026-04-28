@@ -225,8 +225,8 @@ async function fireCapiLeadEvent(
   await sendCapiEvent({
     pixelId:     account.pixel_id,
     accessToken: account.access_token,
-    eventName:   'Lead',
-    eventId:     `${leadId}_Lead`,   // deduplicação: mesmo que fireCapiEvent tente enviar de novo
+    eventName:   'LeadSubmitted',
+    eventId:     `${leadId}_LeadSubmitted`,   // deduplicação: mesmo que fireCapiEvent tente enviar de novo
     phone,
     firstName:   name ?? undefined,
     clickId:     clickId ?? undefined,

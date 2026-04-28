@@ -30,7 +30,14 @@
       "Bash(curl -X POST https://tracker.aquilamarketing.com.br/api/webhooks/whatsapp -H \"Content-Type: application/json\" -d '{\"event\":\"messages.upsert\",\"instance\":\"mastersan2\",\"data\":{\"key\":{\"remoteJid\":\"5547911111111@s.whatsapp.net\",\"fromMe\":false,\"id\":\"TESTMS123\"},\"messageTimestamp\":1776000000,\"pushName\":\"Teste Lead\"}}' -s)",
       "Bash(python3 -c ' *)",
       "Bash(rm -f .git/HEAD.lock)",
-      "Bash(bash deploy.sh \"fix: corrige detecção de origem de anúncio CTWA\")"
+      "Bash(bash deploy.sh \"fix: corrige detecção de origem de anúncio CTWA\")",
+      "Bash(ssh -i ~/.ssh/id_venda -p 2277 -o StrictHostKeyChecking=accept-new -o ConnectTimeout=10 -v root@91.99.98.84 \"echo ok\")",
+      "mcp__n8n-mcp__n8n_executions",
+      "Bash(grep -r \"CREATE TABLE\\\\|from\\('.*'\\)\" /c/Users/thali/claude/venda-whatsapp-ads --include=\"*.ts\" --include=\"*.tsx\" --include=\"*.sql\" ! -path \"*/node_modules/*\")",
+      "Bash(grep -r \"\\\\.from\\\\\\(\" /c/Users/thali/claude/venda-whatsapp-ads/lib --include=\"*.ts\" ! -path \"*/node_modules/*\")",
+      "Bash(ssh -i ~/.ssh/id_venda -p 2277 -o StrictHostKeyChecking=accept-new -o ConnectTimeout=15 root@91.99.98.84 \"docker compose -f /root/venda-whatsapp-ads/docker-compose.yml ps && echo '---LOGS---' && docker compose -f /root/venda-whatsapp-ads/docker-compose.yml logs --tail=60 2>&1\")",
+      "Bash(ssh-keygen -y -f ~/.ssh/id_venda)",
+      "Bash(ssh -i /c/Users/thali/.ssh/id_venda -p 2277 -o StrictHostKeyChecking=accept-new -o ConnectTimeout=15 -v root@91.99.98.84 \"echo ok\")"
     ]
   }
 }
