@@ -74,7 +74,11 @@ interface EvolutionPayload {
 }
 
 function extractPhone(jid: string): string {
-  return jid.replace('@s.whatsapp.net', '').replace('@g.us', '')
+  return jid
+    .replace('@s.whatsapp.net', '')
+    .replace('@g.us', '')
+    .replace('@lid', '')
+    .replace('@c.us', '')
 }
 
 function extractContent(data: EvolutionPayload['data']): string {
@@ -235,9 +239,10 @@ async function fireCapiLeadEvent(
   console.log('[webhook] CAPI Lead disparado para lead:', leadId)
 }
 
-export async function processWhatsappWebhook(req: NextRequest): Promise<NextResponse> {
+export async function processWhatsappWebhook(req: NextRequest, webhookId?: string): Promise<NextResponse> {
   try {
     console.log('[webhook] Recebido em:', req.nextUrl.pathname)
+    console.log('[webhook] Webhook ID:', webhookId || 'padrão')
 
     // Valida secret apenas se enviado
     const secret =
@@ -270,7 +275,9 @@ export async function processWhatsappWebhook(req: NextRequest): Promise<NextResp
 
     const phone = extractPhone(data.key.remoteJid)
     const content = extractContent(data)
-    const instance = payload.instance
+
+    // Usa webhookId se fornecido, caso contrário usa a instância do payload
+    const instance = webhookId || payload.instance
 
     console.log('[webhook] Processando mensagem de:', phone, '| instância:', instance)
 
