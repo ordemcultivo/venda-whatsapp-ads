@@ -37,7 +37,8 @@
       "Bash(grep -r \"\\\\.from\\\\\\(\" /c/Users/thali/claude/venda-whatsapp-ads/lib --include=\"*.ts\" ! -path \"*/node_modules/*\")",
       "Bash(ssh -i ~/.ssh/id_venda -p 2277 -o StrictHostKeyChecking=accept-new -o ConnectTimeout=15 root@91.99.98.84 \"docker compose -f /root/venda-whatsapp-ads/docker-compose.yml ps && echo '---LOGS---' && docker compose -f /root/venda-whatsapp-ads/docker-compose.yml logs --tail=60 2>&1\")",
       "Bash(ssh-keygen -y -f ~/.ssh/id_venda)",
-      "Bash(ssh -i /c/Users/thali/.ssh/id_venda -p 2277 -o StrictHostKeyChecking=accept-new -o ConnectTimeout=15 -v root@91.99.98.84 \"echo ok\")"
+      "Bash(ssh -i /c/Users/thali/.ssh/id_venda -p 2277 -o StrictHostKeyChecking=accept-new -o ConnectTimeout=15 -v root@91.99.98.84 \"echo ok\")",
+      "Bash(ssh -i ~/.ssh/id_venda -p 2277 -o StrictHostKeyChecking=accept-new -o ConnectTimeout=15 root@91.99.98.84 \"cd /root/venda-whatsapp-ads && docker compose ps && echo '---LOGS---' && docker compose logs --tail=50\")"
     ]
   }
 }

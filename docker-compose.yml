@@ -30,8 +30,8 @@ services:
       - "traefik.http.routers.roberto-venda.tls.certresolver=letsencrypt"
       - "traefik.http.services.roberto-venda.loadbalancer.server.port=3000"
     networks:
-      - traefik-public
+      - proxy
 
 networks:
-  traefik-public:
+  proxy:
     external: true
