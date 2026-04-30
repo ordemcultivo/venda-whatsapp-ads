@@ -64,8 +64,7 @@ export async function sendCapiEvent(data: CapiEventData): Promise<CapiResponse> 
         event_name:        eventName,
         event_id:          eventId,               // deduplicação: mesmo ID = Meta ignora duplicata
         event_time:        eventTime,
-        action_source:     'business_messaging',  // correto para WhatsApp
-        messaging_channel: 'whatsapp',
+        action_source:     'system_generated',
         user_data:         userData,
         custom_data:       Object.keys(customData).length > 0 ? customData : undefined,
       },

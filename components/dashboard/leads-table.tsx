@@ -82,7 +82,8 @@ export function LeadsTable({ leads, onStatusChange, capiStatus = {} }: LeadsTabl
 
   async function confirmSale() {
     if (!saleDialog) return
-    const value = saleValue ? parseFloat(saleValue.replace(',', '.')) : undefined
+    const cleanedValue = saleValue.replace(/\./g, '').replace(',', '.')
+    const value = saleValue ? parseFloat(cleanedValue) : undefined
     setSaleDialog(null)
     setSaleValue('')
     await handleStatus(saleDialog.leadId, 'sold', value)
