@@ -381,8 +381,8 @@ export async function processWhatsappWebhook(req: NextRequest, webhookId?: strin
       }
     }
 
-    // Salva a mensagem
-    await supabase.from('whatsapp_messages').insert({
+    // Salva a mensagem — upsert para ignorar duplicate message_id silenciosamente
+    await supabase.from('whatsapp_messages').upsert({
       client_id:    client.id,
       lead_id:      leadId,
       message_id:   data.key.id,
@@ -391,7 +391,7 @@ export async function processWhatsappWebhook(req: NextRequest, webhookId?: strin
       message_type: data.messageType,
       content,
       raw_payload:  payload as any,
-    })
+    }, { onConflict: 'message_id', ignoreDuplicates: true })
 
     console.log('[webhook] Mensagem salva com sucesso')
     return NextResponse.json({ ok: true, lead_id: leadId })
